@@ -5,7 +5,7 @@ import { Sim, Params, Rec, L, DT, T_END } from './sim';
 let aeb = first;   // wird bei Änderung von aeb.ts per HMR ausgetauscht, die Simulation läuft weiter
 import.meta.hot?.accept('./aeb', (m) => { if (m) aeb = m as typeof first; });
 
-const C = { mu:0.9, tau:0.15, jerk:30, noise:0 };
+const C = { mu:0.9, tau:0.15, jerk:30, noise:0, aRamp:0, tRamp:2 };
 const SC: Record<string, Params> = {
   CCRs: { vEgo:50, vTarget:0,  gap:56, targetDecel:0, tBrake:99, ...C },
   CCRm: { vEgo:60, vTarget:20, gap:44, targetDecel:0, tBrake:99, ...C },
@@ -16,6 +16,7 @@ const SL: [keyof Params, string, number, number, number][] = [
   ['gap','Startabstand [m]',5,100,1], ['targetDecel','Ziel-Verzögerung [m/s²]',0,9,0.5],
   ['tBrake','Ziel bremst ab [s]',0,12,0.5], ['mu','Reibwert μ',0.2,1.1,0.05],
   ['tau','Bremsverzug τ [s]',0.02,0.5,0.01], ['jerk','Jerk-Limit [m/s³]',5,60,1], ['noise','Abstandsrauschen σ [m]',0,2,0.1],
+  ['aRamp','Ego-Rampe a [m/s²]',-3,2,0.25], ['tRamp','Ego-Rampe ab [s]',0,10,0.5],
 ];
 let p: Params, sim: Sim, speed = 1, run = true, acc = 0, last = 0;
 const ui = document.getElementById('ui')!;

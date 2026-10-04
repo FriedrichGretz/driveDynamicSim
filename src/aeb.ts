@@ -10,6 +10,9 @@ export interface AebInput {
   aTarget: number;  // m/s², Zielbeschleunigung (negativ = Ziel bremst)
   aDriver: number;  // m/s², Wunsch von Fahrer/Trajektorie (negativ = Verzögerung)
   aMax: number;     // m/s², maximal mögliche Verzögerung (positiv)
+  // Für die Transferaufgabe "Fahrer-Override" (derzeit von der Simulation nicht gefüllt):
+  pedal?: number;   // Gaspedalstellung 0..1
+  steering?: number; // Lenkradwinkelgeschwindigkeit [°/s]
 }
 export interface AebOutput { aCmd: number; stage: 0 | 1 | 2 | 3; ttc: number; btn: number }
 export interface AebState { stage: number }

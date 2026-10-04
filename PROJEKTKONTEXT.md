@@ -70,10 +70,27 @@ Alternative nur bei Bedarf: Python mit pygame, pyqtgraph und Datei-Reload per `i
 - **Fahrer-Override** (starkes Gasgeben oder Lenken unterdrückt AEB): nicht in der ersten Version. Ist als **Transferaufgabe in der Live-Demo** gedacht, falls Zeit bleibt. Die Schnittstelle sollte so entworfen sein, dass die Ergänzung ohne Umbau der Simulation möglich ist (z. B. Pedalstellung und Lenkwinkel als optionale Eingänge).
 - Reaktionszeit-Fahrermodell, Mehrspurverkehr, 3D-Darstellung, Reinforcement Learning.
 
-## 8. Nächste Schritte
+## 8. Umsetzungsstand (Projekt `aeb-sim/`, Vite + TypeScript)
 
-1. Projektstruktur und Gerüst der Zeigedatei mit leeren Funktionen entwerfen und abstimmen.
-2. Simulationskern und Szenarien implementieren.
-3. Visualisierung mit Plots, Geisterfahrzeug und Bedienelementen bauen.
-4. AEB-Logik in der Zeigedatei ausfüllen und die Szenarien durchspielen.
-5. Euro-NCAP-Parameter gegen die aktuelle Protokollfassung prüfen.
+Umgesetzt: Zeigedatei `src/aeb.ts`, Simulationskern `src/sim.ts`, Darstellung `src/main.ts`, `README.md`. Enthalten sind drei Szenarien, Slider, Geisterfahrzeug, vier Live-Plots, Hot Reload der AEB-Logik und Pause/Zeitlupe/Neustart. Der Code wurde vom Autor (Claude) nicht ausgeführt, nur vom Dozenten lokal getestet.
+
+Wichtige Entwurfsentscheidungen:
+- Nach AEB-Eingriff (Stufe >= 2) wird die Ego-Trajektorie gekappt (`vCap` in sim.ts): Sobald Ego nicht schneller als das Ziel ist, hält der Fahrerwunsch diese Geschwindigkeit. Ohne das fuhr Ego nach dem Stillstand wieder an (Stufe fiel auf 0, weil vRel = 0).
+- Ego-Trajektorie: konstant plus optionale Rampe (`aRamp`, `tRamp`), Erweiterung in `vSet()`.
+- Ziel-Verzögerung wird wie im CCRb-Protokoll linear innerhalb von 1,0 s erreicht.
+- `AebInput` enthält die optionalen Felder `pedal` und `steering` für die Override-Transferaufgabe (von der Simulation noch nicht gefüllt).
+- Schwellen in `decideStage` (TTC 2,5 s; BTN 0,4 und 0,8) sind didaktische Platzhalter.
+
+Gegen Euro NCAP AEB C2C Protocol v3.0.2 (Juli 2019) geprüft:
+- T0 bei CCRs/CCRm = TTC 4 s, bei CCRb = Beginn der Zielverzögerung. Startabstand also ca. 4 s mal Relativgeschwindigkeit.
+- CCRs: AEB 10-50 km/h (kombiniert AEB+FCW), nur AEB 10-80 km/h. CCRm: 30-80 km/h. Zielgeschwindigkeit bei CCRm steht dort nur in einer Abbildung und wurde nicht verifiziert (Voreinstellung 20 km/h aus dem Gedächtnis).
+- CCRb: fest 50 km/h für beide, Zielverzögerung -2 und -6 m/s², Abstand 12 m und 40 m, Zielverzögerung wird innerhalb 1,0 s erreicht.
+- Testende: VUT steht, VUT langsamer als Ziel (CCR) oder Kontakt. Teststrecke mit Reibwert (PBC) mindestens 0,9. FCW-Tests mit Bremsroboter: Reaktionszeit 1,2 s, Bremsniveau -4 m/s².
+- Neuere Fassungen (Protokolljahre 2023-2028) wurden nicht eingesehen und können abweichen.
+
+## 9. Nächste Schritte
+
+1. Lokal testen (vor allem CCRm und CCRb), Fehler melden.
+2. Optional: Sensorlatenz, Stützpunktprofil für Ego, automatische Pause bei Stillstand.
+3. Schwellen und Stufenlogik für die Vorlesung festlegen; Transferaufgaben vorbereiten (Fahrer-Override, BTN bei Zielstillstand).
+4. Parameter gegen aktuelle Protokollfassung abgleichen.

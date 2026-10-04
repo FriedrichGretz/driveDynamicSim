@@ -1,6 +1,6 @@
 import { aebStep, initState, type AebOutput } from './aeb';
 
-export interface Params { vEgo:number; vTarget:number; gap:number; targetDecel:number; tBrake:number; mu:number; tau:number; jerk:number; noise:number }
+export interface Params { vEgo:number; vTarget:number; gap:number; targetDecel:number; tBrake:number; mu:number; tau:number; jerk:number; noise:number; aRamp:number; tRamp:number }
 export interface Rec { t:number; ve:number; vt:number; vg:number; aD:number; aC:number; aA:number; ttc:number; btn:number }
 export const L = 4.5, T_END = 12, DT = 0.01;
 export interface Car { x:number; v:number; a:number }
@@ -21,7 +21,10 @@ export class Sim {
   gap(c: Car) { return this.tgt.x - L - c.x; }
 
   // Wunsch der Trajektorie: hier ein Geschwindigkeitsprofil v(t) einbauen
-  private driver(c: Car, cap = Infinity) { return Math.max(-3, Math.min(2, Math.min(this.p.vEgo / 3.6, cap) - c.v)); }
+  private driver(c: Car, cap = Infinity) { return Math.max(-3, Math.min(2, Math.min(this.vSet(), cap) - c.v)); }
+
+  // Geschwindigkeitstrajektorie des Ego: konstant, ab tRamp mit aRamp (m/s²) Rampe; hier beliebig erweiterbar
+  private vSet() { const p = this.p; return Math.max(0, p.vEgo / 3.6 + (this.t >= p.tRamp ? p.aRamp * (this.t - p.tRamp) : 0)); }
 
   private plant(c: Car, aCmd: number) {          // Bremsverzug (PT1) + Jerk-Limit
     const j = this.p.jerk * DT;
@@ -31,7 +34,8 @@ export class Sim {
 
   step() {
     const p = this.p, aMax = p.mu * 9.81, tg = this.tgt;
-    tg.a = this.t >= p.tBrake && tg.v > 0 ? -p.targetDecel : 0;
+    // Euro NCAP CCRb: Soll-Verzögerung wird innerhalb von 1,0 s nach T0 erreicht (lineare Rampe)
+    tg.a = tg.v > 0 ? -p.targetDecel * Math.max(0, Math.min(1, this.t - p.tBrake)) : 0;
     tg.v = Math.max(0, tg.v + tg.a * DT); tg.x += tg.v * DT;
     // Nach einem AEB-Eingriff wird die Trajektorie unterbrochen: Sobald Ego nicht mehr schneller
     // als das Ziel ist (bei stehendem Ziel: Stillstand), hält der Fahrerwunsch diese Geschwindigkeit.

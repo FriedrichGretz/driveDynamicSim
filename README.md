@@ -1,0 +1,6 @@
+# AEB-Lehrsimulation
+Start: `npm install`, dann `npm run dev`, die angezeigte Adresse im Browser öffnen.
+Live editieren: nur `src/aeb.ts` (TTC, BTN, Stufenlogik, Arbitrierung). Speichern genügt (Hot Reload).
+`src/sim.ts` = Fahrzeug-/Szenariokern, `src/main.ts` = Darstellung und Bedienung.
+Szenarien: CCRs, CCRm, CCRb (Euro NCAP AEB Car-to-Car); alle Werte per Slider änderbar.
+Ego-Trajektorie: konstante Geschwindigkeit plus optionale Rampe (`aRamp`, `tRamp`); Erweiterung in `vSet()` (sim.ts).
