@@ -7,11 +7,31 @@ import.meta.hot?.accept("./aeb", (m) => {
     if (m) aeb = m as typeof first;
 });
 
-const C = { mu: 0.9, tau: 0.15, jerk: 30, noise: 0, aRamp: 0, tRamp: 2 };
 const SC: Record<string, Params> = {
-    CCRs: { vEgo: 50, vTarget: 0, gap: 56, targetDecel: 0, tBrake: 99, ...C },
-    CCRm: { vEgo: 60, vTarget: 20, gap: 44, targetDecel: 0, tBrake: 99, ...C },
-    CCRb: { vEgo: 50, vTarget: 50, gap: 12, targetDecel: 6, tBrake: 1, ...C },
+    CCRs: {
+        vEgo: 50,
+        vTarget: 0,
+        gap: 56,
+        targetDecel: 0,
+        tBrake: 99,
+        aMax: 9,
+    },
+    CCRm: {
+        vEgo: 60,
+        vTarget: 20,
+        gap: 44,
+        targetDecel: 0,
+        tBrake: 99,
+        aMax: 9,
+    },
+    CCRb: {
+        vEgo: 50,
+        vTarget: 50,
+        gap: 12,
+        targetDecel: 6,
+        tBrake: 1,
+        aMax: 9,
+    },
 };
 const SL: [keyof Params, string, number, number, number][] = [
     ["vEgo", "Ego-Geschwindigkeit [km/h]", 10, 100, 1],
@@ -19,12 +39,7 @@ const SL: [keyof Params, string, number, number, number][] = [
     ["gap", "Startabstand [m]", 5, 100, 1],
     ["targetDecel", "Ziel-Verzögerung [m/s²]", 0, 9, 0.5],
     ["tBrake", "Ziel bremst ab [s]", 0, 12, 0.5],
-    ["mu", "Reibwert μ", 0.2, 1.1, 0.05],
-    ["tau", "Bremsverzug τ [s]", 0.02, 0.5, 0.01],
-    ["jerk", "Jerk-Limit [m/s³]", 5, 60, 1],
-    ["noise", "Abstandsrauschen σ [m]", 0, 2, 0.1],
-    ["aRamp", "Ego-Rampe a [m/s²]", -3, 2, 0.25],
-    ["tRamp", "Ego-Rampe ab [s]", 0, 10, 0.5],
+    ["aMax", "Max. Verzögerung Ego [m/s²]", 2, 12, 0.5],
 ];
 let p: Params,
     sim: Sim,
@@ -71,13 +86,16 @@ function build(name: string) {
 }
 
 function fit(c: HTMLCanvasElement) {
-    const d = devicePixelRatio || 1;
-    if (c.width !== Math.round(c.clientWidth * d)) {
-        c.width = Math.round(c.clientWidth * d);
-        c.height = Math.round(c.clientHeight * d);
+    const d = devicePixelRatio || 1,
+        w = Math.round(c.clientWidth * d),
+        h = Math.round(c.clientHeight * d);
+    if (c.width !== w || c.height !== h) {
+        c.width = w;
+        c.height = h;
     }
     const x = c.getContext("2d")!;
     x.setTransform(d, 0, 0, d, 0, 0);
+    x.clearRect(0, 0, c.clientWidth, c.clientHeight);
     return x;
 }
 const rr = (
@@ -217,53 +235,83 @@ function panel(
     title: string,
     lo: number,
     hi: number,
+    step: number,
     ser: Ser[],
-    lines: number[] = [],
+    marks: [number, string][] = [],
 ) {
     c.fillStyle = "#141b2d";
     rr(c, x, y, w, h, 10);
     c.fill();
-    const X = (t: number) => x + 40 + (t / T_END) * (w - 56),
+    const L0 = x + 46,
+        R0 = x + w - 14,
+        T0 = y + 36,
+        B0 = y + h - 24;
+    const X = (t: number) => L0 + (t / T_END) * (R0 - L0),
         Y = (v: number) =>
-            y +
-            h -
-            18 -
-            ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (h - 40);
+            B0 - ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (B0 - T0);
     c.font = "12px system-ui";
-    c.fillStyle = "#9aa4c2";
+    c.lineWidth = 1;
+    c.setLineDash([]);
+    c.fillStyle = "#e6e9f2";
     c.textAlign = "left";
-    c.fillText(title, x + 12, y + 17);
-    c.textAlign = "right";
-    c.fillText(String(hi), x + 34, Y(hi) + 4);
-    c.fillText(String(lo), x + 34, Y(lo) + 4);
-    c.strokeStyle = "#2a3556";
-    c.setLineDash([4, 4]);
-    for (const v of [0, ...lines]) {
-        if (v < lo || v > hi) continue;
-        c.beginPath();
-        c.moveTo(X(0), Y(v));
-        c.lineTo(X(T_END), Y(v));
-        c.stroke();
+    c.fillText(title, x + 12, y + 20);
+    let lx = x + w - 12;
+    c.textAlign = "right"; // Legende rechts neben dem Titel
+    for (const [nm, , col] of [...ser].reverse()) {
+        c.fillStyle = col;
+        c.fillText(nm, lx, y + 20);
+        lx -= c.measureText(nm).width + 14;
     }
-    for (const [nm, f, col, dash] of ser) {
-        c.setLineDash(dash ? [5, 4] : []);
+    for (let t = 0; t <= T_END; t += 2) {
+        // x-Achse: Zeit
+        c.strokeStyle = "#222c49";
+        c.beginPath();
+        c.moveTo(X(t), T0);
+        c.lineTo(X(t), B0);
+        c.stroke();
+        c.fillStyle = "#9aa4c2";
+        c.textAlign = "center";
+        c.fillText(t + " s", X(t), B0 + 16);
+    }
+    for (let v = lo; v <= hi + 1e-9; v += step) {
+        // y-Achse: Teilung mit Beschriftung
+        c.strokeStyle = v === 0 ? "#4a567f" : "#222c49";
+        c.beginPath();
+        c.moveTo(L0, Y(v));
+        c.lineTo(R0, Y(v));
+        c.stroke();
+        c.fillStyle = "#9aa4c2";
+        c.textAlign = "right";
+        c.fillText(String(+v.toFixed(2)), L0 - 6, Y(v) + 4);
+    }
+    for (const [v, label] of marks) {
+        // beschriftete Schwellen
+        c.setLineDash([5, 4]);
+        c.strokeStyle = "#f5b94299";
+        c.beginPath();
+        c.moveTo(L0, Y(v));
+        c.lineTo(R0, Y(v));
+        c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = "#f5b942";
+        c.textAlign = "right";
+        c.fillText(label, R0 - 4, Y(v) - 4);
+    }
+    c.save();
+    c.beginPath();
+    c.rect(L0, T0 - 2, R0 - L0, B0 - T0 + 4);
+    c.clip();
+    for (const [, f, col, dash] of ser) {
+        c.setLineDash(dash ? [6, 4] : []);
         c.strokeStyle = col;
         c.lineWidth = 2;
         c.beginPath();
-        sim.hist.forEach((r, i) => {
-            const v = f(r);
-            i ? c.lineTo(X(r.t), Y(v)) : c.moveTo(X(r.t), Y(v));
-        });
-        c.stroke();
-        c.setLineDash([]);
-        c.fillStyle = col;
-        c.textAlign = "right";
-        c.fillText(
-            nm,
-            x + w - 10 - ser.findIndex((q) => q[0] === nm) * 0,
-            y + 17 + 14 * ser.findIndex((q) => q[0] === nm),
+        sim.hist.forEach((r, i) =>
+            i ? c.lineTo(X(r.t), Y(f(r))) : c.moveTo(X(r.t), Y(f(r))),
         );
+        c.stroke();
     }
+    c.restore();
     c.setLineDash([]);
 }
 function drawPlots() {
@@ -273,15 +321,15 @@ function drawPlots() {
         H = cv.clientHeight,
         w = (W - 10) / 2,
         h = (H - 10) / 2;
-    panel(c, 0, 0, w, h, "Geschwindigkeit [km/h]", 0, 100, [
+    const T = aeb.THRESHOLDS;
+    panel(c, 0, 0, w, h, "Geschwindigkeit [km/h]", 0, 100, 20, [
         ["Ego", (r) => r.ve, "#3b82f6"],
         ["Ziel", (r) => r.vt, "#ff9f43"],
-        ["Geist", (r) => r.vg, "#9db4ff", true],
+        ["Geist (ohne AEB)", (r) => r.vg, "#9db4ff", true],
     ]);
-    panel(c, w + 10, 0, w, h, "Beschleunigung [m/s²]", -10, 3, [
-        ["Wunsch", (r) => r.aD, "#8892b0", true],
-        ["AEB-Ergebnis", (r) => r.aC, "#ff4d5e"],
-        ["Ist", (r) => r.aA, "#3b82f6"],
+    panel(c, w + 10, 0, w, h, "Beschleunigung [m/s²]", -12, 4, 4, [
+        ["Fahrerwunsch", (r) => r.aD, "#8892b0", true],
+        ["AEB-Ergebnis (Ego)", (r) => r.aC, "#ff4d5e"],
     ]);
     panel(
         c,
@@ -292,8 +340,9 @@ function drawPlots() {
         "TTC [s]",
         0,
         6,
+        1,
         [["TTC", (r) => r.ttc, "#34d399"]],
-        [2.5],
+        [[T.ttcWarn, `Warnung ${T.ttcWarn} s`]],
     );
     panel(
         c,
@@ -304,8 +353,13 @@ function drawPlots() {
         "BTN [–]",
         0,
         1.5,
+        0.25,
         [["BTN", (r) => r.btn, "#f5b942"]],
-        [0.4, 0.8, 1],
+        [
+            [T.btnPartial, `Teilbremsung ${T.btnPartial}`],
+            [T.btnFull, `Vollbremsung ${T.btnFull}`],
+            [1, "nicht mehr vermeidbar 1,0"],
+        ],
     );
 }
 

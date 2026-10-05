@@ -6,12 +6,7 @@ export interface Params {
     gap: number;
     targetDecel: number;
     tBrake: number;
-    mu: number;
-    tau: number;
-    jerk: number;
-    noise: number;
-    aRamp: number;
-    tRamp: number;
+    aMax: number;
 }
 export interface Rec {
     t: number;
@@ -20,7 +15,6 @@ export interface Rec {
     vg: number;
     aD: number;
     aC: number;
-    aA: number;
     ttc: number;
     btn: number;
 }
@@ -38,16 +32,15 @@ export class Sim {
     n = 0;
     st = initState();
     aD = 0;
-    out: AebOutput = { aCmd: 0, state: this.st, ttc: Infinity, btn: 0 };
-    intervened = false;
-    vCap = Infinity; // nach AEB-Eingriff: Trajektorie gekappt
+    out: AebOutput = { aCmd: 0, state: 0, ttc: Infinity, btn: 0 };
+    intervened = false; // wurde schon aktiv gebremst? Dann nimmt der Fahrer den Fuß vom Gas
     crash = NaN;
     ghostCrash = NaN;
     hist: Rec[] = [];
     ego: Car;
     ghost: Car;
     tgt: Car;
-    aebFn = aebStep; // wird von main.ts bei jedem Frame auf die aktuelle (hot-reloaded) Version gesetzt
+    aebFn = aebStep; // wird von main.ts pro Frame auf die aktuelle (hot-reloaded) Version gesetzt
     constructor(public p: Params) {
         const v = p.vEgo / 3.6;
         this.ego = { x: 0, v, a: 0 };
@@ -61,66 +54,46 @@ export class Sim {
         return this.tgt.x - L - c.x;
     }
 
-    // Wunsch der Trajektorie: hier ein Geschwindigkeitsprofil v(t) einbauen
-    private driver(c: Car, cap = Infinity) {
-        return Math.max(-3, Math.min(2, Math.min(this.vSet(), cap) - c.v));
+    // Fahrerwunsch: Geschwindigkeit der Trajektorie (konstant) halten, begrenzt auf -3..+2 m/s²
+    private driver(c: Car) {
+        return Math.max(-3, Math.min(2, this.p.vEgo / 3.6 - c.v));
     }
 
-    // Geschwindigkeitstrajektorie des Ego: konstant, ab tRamp mit aRamp (m/s²) Rampe; hier beliebig erweiterbar
-    private vSet() {
-        const p = this.p;
-        return Math.max(
-            0,
-            p.vEgo / 3.6 +
-                (this.t >= p.tRamp ? p.aRamp * (this.t - p.tRamp) : 0),
-        );
-    }
-
-    private plant(c: Car, aCmd: number) {
-        // Bremsverzug (PT1) + Jerk-Limit
-        const j = this.p.jerk * DT;
-        c.a += Math.max(-j, Math.min(j, ((aCmd - c.a) / this.p.tau) * DT));
-        c.v = Math.max(0, c.v + c.a * DT);
+    private move(c: Car, a: number) {
+        c.a = a;
+        c.v = Math.max(0, c.v + a * DT);
         c.x += c.v * DT;
     }
 
     step() {
         const p = this.p,
-            aMax = p.mu * 9.81,
             tg = this.tgt;
-        // Euro NCAP CCRb: Soll-Verzögerung wird innerhalb von 1,0 s nach T0 erreicht (lineare Rampe)
+        // Ziel: Euro NCAP CCRb erreicht die Soll-Verzögerung innerhalb von 1,0 s nach T0 (lineare Rampe)
         tg.a =
             tg.v > 0
                 ? -p.targetDecel * Math.max(0, Math.min(1, this.t - p.tBrake))
                 : 0;
         tg.v = Math.max(0, tg.v + tg.a * DT);
         tg.x += tg.v * DT;
-        // Nach einem AEB-Eingriff wird die Trajektorie unterbrochen: Sobald Ego nicht mehr schneller
-        // als das Ziel ist (bei stehendem Ziel: Stillstand), hält der Fahrerwunsch diese Geschwindigkeit.
+        // Nach einem AEB-Eingriff nimmt der Fahrer den Fuß vom Gas (Wunsch 0), er will nicht wieder anfahren
         if (this.out.state >= 2) this.intervened = true;
-        if (this.intervened && this.ego.v <= tg.v + 0.05)
-            this.vCap = Math.min(this.vCap, this.ego.v);
-        this.aD = this.driver(this.ego, this.vCap);
-        if (this.n % 2 === 0) {
+        this.aD = this.intervened ? 0 : this.driver(this.ego);
+        if (this.n % 2 === 0)
             // AEB-Zyklus 20 ms
-            const noise =
-                p.noise *
-                2 *
-                (Math.random() + Math.random() + Math.random() - 1.5);
             this.out = this.aebFn(
                 {
                     vEgo: this.ego.v,
                     vTarget: tg.v,
-                    distance: this.gap(this.ego) + noise,
+                    distance: this.gap(this.ego),
                     aTarget: tg.a,
                     aDriver: this.aD,
-                    aMax,
+                    aMax: p.aMax,
                 },
                 this.out.state,
             );
-        }
-        this.plant(this.ego, Math.max(-aMax, this.out.aCmd));
-        this.plant(this.ghost, Math.max(-aMax, this.driver(this.ghost)));
+        const aC = Math.max(-p.aMax, this.out.aCmd);
+        this.move(this.ego, aC);
+        this.move(this.ghost, Math.max(-p.aMax, this.driver(this.ghost)));
         if (this.gap(this.ego) <= 0) {
             if (isNaN(this.crash)) this.crash = (this.ego.v - tg.v) * 3.6;
             this.ego.x = tg.x - L;
@@ -139,8 +112,7 @@ export class Sim {
                 vt: tg.v * 3.6,
                 vg: this.ghost.v * 3.6,
                 aD: this.aD,
-                aC: Math.max(-aMax, this.out.aCmd),
-                aA: this.ego.a,
+                aC,
                 ttc: this.out.ttc,
                 btn: this.out.btn,
             });

@@ -25,20 +25,21 @@ export interface AebOutput {
     btn: number;
 }
 
-export const initState = (): AebState => (AebState.NoDanger);
+export const initState = (): AebState => AebState.NoDanger;
 
 // --- 1. Metriken -------------------------------------------------
 
 // --- 2. Triggerlogik ---------------------------------------------
+export const THRESHOLDS = { ttcWarn: 2.5, btnPartial: 0.4, btnFull: 0.8 }; // werden auch in den Plots angezeigt
 
 // --- 3. Arbitrierung ---------------------------------------------
 // Aus Stufe und Fahrerwunsch entsteht der Sollwert für die Bremsenregelung.
 
 // --- Zyklus (alle 20 ms) -----------------------------------------
 export function aebStep(inp: AebInput, prevState: AebState): AebOutput {
-    const ttc = 1
-    const btn = 0
-    const newState = prevState
-    const aCmd = 0
+    const ttc = 1;
+    const btn = 0;
+    const newState = prevState;
+    const aCmd = 0;
     return { aCmd, state: newState, ttc, btn };
 }

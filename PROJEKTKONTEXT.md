@@ -46,7 +46,7 @@ Alternative nur bei Bedarf: Python mit pygame, pyqtgraph und Datei-Reload per `i
    - `computeBTN(...)`: a_req = v_rel² / (2d), BTN = a_req / a_max. BTN ≥ 1 bedeutet, die Kollision ist physikalisch nicht mehr vermeidbar. Für ein bremsendes Ziel gilt etwa a_req = v_rel² / (2d) + a_Ziel, solange das Ziel noch rollt. Der Sonderfall "Ziel steht vor dem Aufprall" bleibt als Studierendenaufgabe offen.
    - Triggerlogik: Schwellen für Stufen (Warnung, Teilbremsung, Vollbremsung), Hysterese gegen Flattern.
    - `arbitrate(...)`: bildet aus den Einzelmetriken und der **vom Fahrer bzw. von der Trajektorie angeforderten Beschleunigung** das Gesamtergebnis für die Bremsenregelung, inklusive Warnungen. Basisregel: Die stärkere Verzögerung gewinnt (niedrigere Sollbeschleunigung).
-2. **Simulationskern (verdeckt):** Längsdynamik, maximale Verzögerung (abhängig vom Reibwert), Bremsverzug und Aktuatordynamik, Jerk-Limit, optional Sensorrauschen und Sensorlatenz, fester Simulationsschritt, Ego-Trajektorie, Zieltrajektorie.
+2. **Simulationskern (verdeckt):** Längsdynamik (ideal, ohne Aktuatorverzug), maximale Verzögerung, fester Simulationsschritt, Ego-Trajektorie, Zieltrajektorie.
 3. **Visualisierung (verdeckt):** Seitenansicht der Straße, zwei Fahrzeuge, Bremslichter, Abstandsanzeige, Live-Plots, farbige Anzeige der aktiven AEB-Stufe.
 
 **Schnittstelle der AEB-Funktion (Entwurf):**
@@ -58,7 +58,7 @@ Alternative nur bei Bedarf: Python mit pygame, pyqtgraph und Datei-Reload per `i
 - Ego fährt eine **vorgegebene Geschwindigkeitstrajektorie** (konstant, Rampe oder Stützpunkte). Die Fahrer-Sollbeschleunigung folgt daraus; AEB unterbricht und verändert sie. Kein Fahrermodell mit Reaktionszeit.
 - Ziel ebenfalls frei per Trajektorie wählbar, Euro-NCAP-Werte als Voreinstellung.
 - Alle drei Szenarien (CCRs, CCRm, CCRb) wählbar und individuell parametrierbar.
-- Realismusparameter einstellbar: Bremsverzug, Jerk-Limit, maximale Verzögerung/Reibwert, Sensorrauschen (per Schalter, Standard aus).
+- Einstellbar: Startwerte und die maximale Verzögerung des Ego (direkt in m/s²). Bremsverzug, Jerk-Limit, Reibwert, Sensorrauschen und Ego-Rampen wurden bewusst gestrichen (Komplexität reduzieren).
 - Interaktiv: Slider für Startwerte, Pause, Zeitlupe, Neustart, Szenarioauswahl.
 - **Geisterfahrzeug**: zusätzlich wird der Ego-Verlauf **ohne AEB** als Geist angezeigt, damit der Nutzen des Eingriffs sichtbar wird.
 - Live-Plots: Geschwindigkeiten, Abstand, TTC, BTN, Sollbeschleunigung (Fahrer, AEB, Ergebnis).
@@ -72,25 +72,24 @@ Alternative nur bei Bedarf: Python mit pygame, pyqtgraph und Datei-Reload per `i
 
 ## 8. Umsetzungsstand (Projekt `aeb-sim/`, Vite + TypeScript)
 
-Umgesetzt: Zeigedatei `src/aeb.ts`, Simulationskern `src/sim.ts`, Darstellung `src/main.ts`, `README.md`. Enthalten sind drei Szenarien, Slider, Geisterfahrzeug, vier Live-Plots, Hot Reload der AEB-Logik und Pause/Zeitlupe/Neustart. Der Code wurde vom Autor (Claude) nicht ausgeführt, nur vom Dozenten lokal getestet.
+Umgesetzt: `src/aeb.ts` (Zeigedatei, inkl. exportierter `THRESHOLDS`, die auch in den Plots beschriftet werden), `src/sim.ts` (Kern), `src/main.ts` (Darstellung/Bedienung), `README.md`. Drei Szenarien, Slider, Geisterfahrzeug ohne AEB, vier Live-Plots mit beschrifteten Achsen und Schwellen, Hot Reload der AEB-Logik, Pause/Zeitlupe/Neustart. Der Code wurde von Claude nicht ausgeführt, nur vom Dozenten lokal getestet.
 
-Wichtige Entwurfsentscheidungen:
-- Nach AEB-Eingriff (Stufe >= 2) wird die Ego-Trajektorie gekappt (`vCap` in sim.ts): Sobald Ego nicht schneller als das Ziel ist, hält der Fahrerwunsch diese Geschwindigkeit. Ohne das fuhr Ego nach dem Stillstand wieder an (Stufe fiel auf 0, weil vRel = 0).
-- Ego-Trajektorie: konstant plus optionale Rampe (`aRamp`, `tRamp`), Erweiterung in `vSet()`.
+Entwurfsentscheidungen:
+- Ideale Längsdynamik: Das Ego setzt den Sollwert der Arbitrierung sofort um (begrenzt auf die einstellbare maximale Verzögerung). Bremsverzug, Jerk, Reibwert, Rauschen und Ego-Rampen wurden entfernt.
+- Fahrerwunsch: Vor einem Eingriff regelt der Fahrer auf die Trajektoriegeschwindigkeit (konstant, begrenzt -3..+2 m/s²). Sobald das AEB mindestens Teilbremsung (Stufe >= 2) erreicht hat, nimmt er den Fuß vom Gas (Wunsch 0). Ohne diese Regel wollte das Modell nach dem Abbremsen wieder auf die Trajektorie beschleunigen und fuhr nach dem Stillstand wieder an.
 - Ziel-Verzögerung wird wie im CCRb-Protokoll linear innerhalb von 1,0 s erreicht.
 - `AebInput` enthält die optionalen Felder `pedal` und `steering` für die Override-Transferaufgabe (von der Simulation noch nicht gefüllt).
-- Schwellen in `decideStage` (TTC 2,5 s; BTN 0,4 und 0,8) sind didaktische Platzhalter.
+- Schwellen (TTC 2,5 s; BTN 0,4 und 0,8) sind didaktische Platzhalter.
 
 Gegen Euro NCAP AEB C2C Protocol v3.0.2 (Juli 2019) geprüft:
 - T0 bei CCRs/CCRm = TTC 4 s, bei CCRb = Beginn der Zielverzögerung. Startabstand also ca. 4 s mal Relativgeschwindigkeit.
-- CCRs: AEB 10-50 km/h (kombiniert AEB+FCW), nur AEB 10-80 km/h. CCRm: 30-80 km/h. Zielgeschwindigkeit bei CCRm steht dort nur in einer Abbildung und wurde nicht verifiziert (Voreinstellung 20 km/h aus dem Gedächtnis).
-- CCRb: fest 50 km/h für beide, Zielverzögerung -2 und -6 m/s², Abstand 12 m und 40 m, Zielverzögerung wird innerhalb 1,0 s erreicht.
-- Testende: VUT steht, VUT langsamer als Ziel (CCR) oder Kontakt. Teststrecke mit Reibwert (PBC) mindestens 0,9. FCW-Tests mit Bremsroboter: Reaktionszeit 1,2 s, Bremsniveau -4 m/s².
+- CCRs: AEB 10-50 km/h (kombiniert AEB+FCW), nur AEB 10-80 km/h. CCRm: 30-80 km/h. Die CCRm-Zielgeschwindigkeit steht im Protokoll nur in einer Abbildung und ist nicht verifiziert (Voreinstellung 20 km/h aus dem Gedächtnis).
+- CCRb: fest 50 km/h für beide, Zielverzögerung -2 und -6 m/s², Abstand 12 m und 40 m, Verzögerung innerhalb 1,0 s erreicht.
+- Testende: VUT steht, VUT langsamer als Ziel (CCR) oder Kontakt. Teststrecke mit Reibwert mindestens 0,9.
 - Neuere Fassungen (Protokolljahre 2023-2028) wurden nicht eingesehen und können abweichen.
 
 ## 9. Nächste Schritte
 
-1. Lokal testen (vor allem CCRm und CCRb), Fehler melden.
-2. Optional: Sensorlatenz, Stützpunktprofil für Ego, automatische Pause bei Stillstand.
-3. Schwellen und Stufenlogik für die Vorlesung festlegen; Transferaufgaben vorbereiten (Fahrer-Override, BTN bei Zielstillstand).
-4. Parameter gegen aktuelle Protokollfassung abgleichen.
+1. Lokal testen, Rückmeldungen einarbeiten.
+2. Schwellen und Stufenlogik für die Vorlesung festlegen; Transferaufgaben vorbereiten (Fahrer-Override, BTN bei Zielstillstand).
+3. Parameter gegen aktuelle Protokollfassung abgleichen.

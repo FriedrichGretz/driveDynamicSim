@@ -25,7 +25,7 @@ export interface AebOutput {
     btn: number;
 }
 
-export const initState = (): AebState => (AebState.NoDanger);
+export const initState = (): AebState => AebState.NoDanger;
 
 // --- 1. Metriken -------------------------------------------------
 export function computeTTC(distance: number, vRel: number): number {
@@ -46,11 +46,17 @@ export function computeBTN(
 }
 
 // --- 2. Triggerlogik ---------------------------------------------
-export function decideNextState(ttc: number, btn: number, prevState: AebState): AebState {
+export const THRESHOLDS = { ttcWarn: 2.5, btnPartial: 0.4, btnFull: 0.8 }; // werden auch in den Plots angezeigt
+
+export function decideNextState(
+    ttc: number,
+    btn: number,
+    prevState: AebState,
+): AebState {
     let s = 0;
-    if (ttc < 2.5) s = AebState.Warning;
-    if (btn > 0.4) s = AebState.PartialBraking;
-    if (btn > 0.8) s = AebState.FullBraking;
+    if (ttc < THRESHOLDS.ttcWarn) s = AebState.Warning;
+    if (btn > THRESHOLDS.btnPartial) s = AebState.PartialBraking;
+    if (btn > THRESHOLDS.btnFull) s = AebState.FullBraking;
     return Math.max(s, prevState) as AebState; // Stufe bleibt gehalten (Hysterese)
 }
 
@@ -72,8 +78,8 @@ export function aebStep(inp: AebInput, prevState: AebState): AebOutput {
     const btn = computeBTN(inp.distance, vRel, inp.aTarget, inp.aMax);
     const newState =
         vRel <= 0
-            ? (AebState.NoDanger) // Gefahr vorbei: Freigabe
-            : (decideNextState(ttc, btn, prevState));
+            ? AebState.NoDanger // Gefahr vorbei: Freigabe
+            : decideNextState(ttc, btn, prevState);
     const aCmd = arbitrate(inp.aDriver, newState, inp.aMax);
     return { aCmd, state: newState, ttc, btn };
 }
