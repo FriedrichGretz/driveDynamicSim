@@ -38,7 +38,7 @@ export class Sim {
     n = 0;
     st = initState();
     aD = 0;
-    out: AebOutput = { aCmd: 0, stage: 0, ttc: Infinity, btn: 0 };
+    out: AebOutput = { aCmd: 0, state: this.st, ttc: Infinity, btn: 0 };
     intervened = false;
     vCap = Infinity; // nach AEB-Eingriff: Trajektorie gekappt
     crash = NaN;
@@ -97,7 +97,7 @@ export class Sim {
         tg.x += tg.v * DT;
         // Nach einem AEB-Eingriff wird die Trajektorie unterbrochen: Sobald Ego nicht mehr schneller
         // als das Ziel ist (bei stehendem Ziel: Stillstand), hält der Fahrerwunsch diese Geschwindigkeit.
-        if (this.out.stage >= 2) this.intervened = true;
+        if (this.out.state >= 2) this.intervened = true;
         if (this.intervened && this.ego.v <= tg.v + 0.05)
             this.vCap = Math.min(this.vCap, this.ego.v);
         this.aD = this.driver(this.ego, this.vCap);
@@ -116,7 +116,7 @@ export class Sim {
                     aDriver: this.aD,
                     aMax,
                 },
-                this.st,
+                this.out.state,
             );
         }
         this.plant(this.ego, Math.max(-aMax, this.out.aCmd));

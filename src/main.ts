@@ -176,12 +176,12 @@ function drawScene() {
     }
     const o = sim.out;
     rr(c, 14, 12, 190, 34, 10);
-    c.fillStyle = COLS[o.stage];
+    c.fillStyle = COLS[o.state];
     c.fill();
     c.fillStyle = "#0b1020";
     c.font = "bold 15px system-ui";
     c.textAlign = "left";
-    c.fillText(NAMES[o.stage], 28, 34);
+    c.fillText(NAMES[o.state], 28, 34);
     c.fillStyle = "#e6e9f2";
     c.font = "14px ui-monospace,monospace";
     c.fillText(

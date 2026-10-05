@@ -7,23 +7,25 @@ export interface AebInput {
     vEgo: number; // m/s
     vTarget: number; // m/s
     distance: number; // m, Stoßstange Ego bis Heck Ziel
-    aTarget: number; // m/s², Zielbeschleunigung (negativ = Ziel bremst)
+    aTarget: number; // m/s², Zielfahrzeug Beschleunigung (negativ = Ziel bremst)
     aDriver: number; // m/s², Wunsch von Fahrer/Trajektorie (negativ = Verzögerung)
     aMax: number; // m/s², maximal mögliche Verzögerung (positiv)
-    // Für die Transferaufgabe "Fahrer-Override" (derzeit von der Simulation nicht gefüllt):
-    pedal?: number; // Gaspedalstellung 0..1
-    steering?: number; // Lenkradwinkelgeschwindigkeit [°/s]
+}
+export enum AebState {
+    NoDanger = 0,
+    Warning = 1,
+    PartialBraking = 2,
+    FullBraking = 3,
 }
 export interface AebOutput {
-    aCmd: number;
-    stage: 0 | 1 | 2 | 3;
+    aCmd: number; // Beschleunigung oder Verzögerung des Notbremsassistenten
+    // for simulation or debugging:
+    state: AebState;
     ttc: number;
     btn: number;
 }
-export interface AebState {
-    stage: number;
-}
-export const initState = (): AebState => ({ stage: 0 });
+
+export const initState = (): AebState => (AebState.NoDanger);
 
 // --- 1. Metriken -------------------------------------------------
 export function computeTTC(distance: number, vRel: number): number {
@@ -44,36 +46,34 @@ export function computeBTN(
 }
 
 // --- 2. Triggerlogik ---------------------------------------------
-export function decideStage(
-    ttc: number,
-    btn: number,
-    prev: number,
-): 0 | 1 | 2 | 3 {
+export function decideNextState(ttc: number, btn: number, prevState: AebState): AebState {
     let s = 0;
-    if (ttc < 2.5) s = 1; // Warnung
-    if (btn > 0.4) s = 2; // Teilbremsung
-    if (btn > 0.8) s = 3; // Vollbremsung
-    return Math.max(s, prev) as 0 | 1 | 2 | 3; // Stufe bleibt gehalten (Hysterese)
+    if (ttc < 2.5) s = AebState.Warning;
+    if (btn > 0.4) s = AebState.PartialBraking;
+    if (btn > 0.8) s = AebState.FullBraking;
+    return Math.max(s, prevState) as AebState; // Stufe bleibt gehalten (Hysterese)
 }
 
 // --- 3. Arbitrierung ---------------------------------------------
 // Aus Stufe und Fahrerwunsch entsteht der Sollwert für die Bremsenregelung.
 export function arbitrate(
     aDriver: number,
-    stage: number,
+    state: number,
     aMax: number,
 ): number {
-    const aAeb = [Infinity, Infinity, -0.5 * aMax, -aMax][stage];
+    const aAeb = [Infinity, Infinity, -0.5 * aMax, -aMax][state];
     return Math.min(aDriver, aAeb); // die stärkere Verzögerung gewinnt
 }
 
 // --- Zyklus (alle 20 ms) -----------------------------------------
-export function aebStep(inp: AebInput, st: AebState): AebOutput {
+export function aebStep(inp: AebInput, prevState: AebState): AebOutput {
     const vRel = inp.vEgo - inp.vTarget;
     const ttc = computeTTC(inp.distance, vRel);
     const btn = computeBTN(inp.distance, vRel, inp.aTarget, inp.aMax);
-    if (vRel <= 0) st.stage = 0; // Gefahr vorbei: Freigabe
-    st.stage = decideStage(ttc, btn, st.stage);
-    const aCmd = arbitrate(inp.aDriver, st.stage, inp.aMax);
-    return { aCmd, stage: st.stage as 0 | 1 | 2 | 3, ttc, btn };
+    const newState =
+        vRel <= 0
+            ? (AebState.NoDanger) // Gefahr vorbei: Freigabe
+            : (decideNextState(ttc, btn, prevState));
+    const aCmd = arbitrate(inp.aDriver, newState, inp.aMax);
+    return { aCmd, state: newState, ttc, btn };
 }
