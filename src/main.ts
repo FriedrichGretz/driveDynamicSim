@@ -161,39 +161,34 @@ function drawScene() {
         c = fit(cv),
         W = cv.clientWidth,
         H = cv.clientHeight;
-    const g = c.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#16224a");
-    g.addColorStop(1, "#2d3b6b");
-    c.fillStyle = g;
+    c.fillStyle = "#1a1d27";
     c.fillRect(0, 0, W, H);
     const s = Math.max(1, Math.min(12, (0.5 * W) / (p.gap + L + 5))),
-        yg = H * 0.8,
+        yg = H - 42, // Fahrzeuge oben, Abstandsbalken darunter
         ex = sim.ego.x,
         X = (x: number) => W * 0.4 + (x - ex) * s;
-    c.fillStyle = "#1a1d27";
-    c.fillRect(0, H * 0.62, W, H);
-    c.fillStyle = "#c9cde0";
-    for (let i = -1; i < W / 90 + 2; i++)
-        c.fillRect(i * 90 - ((ex * s) % 90), H * 0.9, 45, 3);
     car(c, X(sim.ghost.x), yg, s, "#9db4ff", 0.35, false, true);
     car(c, X(sim.tgt.x), yg, s, "#ff9f43", 1, sim.tgt.a < -0.5);
     car(c, X(sim.ego.x), yg, s, "#3b82f6", 1, sim.ego.a < -0.5);
     const gp = sim.gap(sim.ego);
     if (gp > 0) {
-        const y = H * 0.5;
+        const y = H - 24,
+            x1 = X(sim.ego.x),
+            x2 = X(sim.tgt.x - L);
         c.strokeStyle = "#e6e9f2";
+        c.lineWidth = 1.5;
         c.beginPath();
-        c.moveTo(X(sim.ego.x), y);
-        c.lineTo(X(sim.tgt.x - L), y);
+        c.moveTo(x1, y);
+        c.lineTo(x2, y);
+        c.moveTo(x1, y - 4);
+        c.lineTo(x1, y + 4);
+        c.moveTo(x2, y - 4);
+        c.lineTo(x2, y + 4);
         c.stroke();
         c.fillStyle = "#e6e9f2";
         c.font = "13px system-ui";
         c.textAlign = "center";
-        c.fillText(
-            gp.toFixed(1) + " m",
-            (X(sim.ego.x) + X(sim.tgt.x - L)) / 2,
-            y - 6,
-        );
+        c.fillText(gp.toFixed(1) + " m", (x1 + x2) / 2, y + 16);
     }
 }
 
