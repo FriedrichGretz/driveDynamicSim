@@ -1,5 +1,5 @@
 // ============================================================
-//  AEB-Auslösung: TTC, BTN und Arbitrierung  (hier wird live editiert)
+//  AEB-Auslösung: TTC und Arbitrierung  (hier wird live editiert)
 //  Speichern -> die laufende Simulation übernimmt die neue Logik sofort.
 // ============================================================
 
@@ -22,7 +22,6 @@ export interface AebOutput {
     // for simulation or debugging:
     state: AebState;
     ttc: number;
-    btn: number;
 }
 
 export const initState = (): AebState => AebState.NoDanger;
@@ -30,7 +29,7 @@ export const initState = (): AebState => AebState.NoDanger;
 // --- 1. Metriken -------------------------------------------------
 
 // --- 2. Triggerlogik ---------------------------------------------
-export const THRESHOLDS = { ttcWarn: 2.5, btnPartial: 0.4, btnFull: 0.8 }; // werden auch in den Plots angezeigt
+export const THRESHOLDS = { ttcWarn: 2.5 }; // werden auch in den Plots angezeigt
 
 // --- 3. Arbitrierung ---------------------------------------------
 // Aus Stufe und Fahrerwunsch entsteht der Sollwert für die Bremsenregelung.
@@ -38,8 +37,7 @@ export const THRESHOLDS = { ttcWarn: 2.5, btnPartial: 0.4, btnFull: 0.8 }; // we
 // --- Zyklus (alle 20 ms) -----------------------------------------
 export function aebStep(inp: AebInput, prevState: AebState): AebOutput {
     const ttc = 1;
-    const btn = 0;
     const newState = prevState;
     const aCmd = 0;
-    return { aCmd, state: newState, ttc, btn };
+    return { aCmd, state: newState, ttc };
 }

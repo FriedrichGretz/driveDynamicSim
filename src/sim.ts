@@ -16,7 +16,6 @@ export interface Rec {
     aD: number;
     aC: number;
     ttc: number;
-    btn: number;
 }
 export const L = 4.5,
     T_END = 12,
@@ -32,7 +31,7 @@ export class Sim {
     n = 0;
     st = initState();
     aD = 0;
-    out: AebOutput = { aCmd: 0, state: 0, ttc: Infinity, btn: 0 };
+    out: AebOutput = { aCmd: 0, state: 0, ttc: Infinity };
     intervened = false; // wurde schon aktiv gebremst? Dann nimmt der Fahrer den Fuß vom Gas
     crash = NaN;
     ghostCrash = NaN;
@@ -114,7 +113,6 @@ export class Sim {
                 aD: this.aD,
                 aC,
                 ttc: this.out.ttc,
-                btn: this.out.btn,
             });
         this.t += DT;
         this.n++;

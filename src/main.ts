@@ -203,7 +203,7 @@ function drawScene() {
     c.fillStyle = "#e6e9f2";
     c.font = "14px ui-monospace,monospace";
     c.fillText(
-        `TTC ${isFinite(o.ttc) ? o.ttc.toFixed(2) + " s" : "∞"}   BTN ${o.btn.toFixed(2)}   t ${sim.t.toFixed(1)} s`,
+        `TTC ${isFinite(o.ttc) ? o.ttc.toFixed(2) + " s" : "∞"}   t ${sim.t.toFixed(1)} s`,
         220,
         34,
     );
@@ -335,7 +335,7 @@ function drawPlots() {
         c,
         0,
         h + 10,
-        w,
+        W,
         h,
         "TTC [s]",
         0,
@@ -343,23 +343,6 @@ function drawPlots() {
         1,
         [["TTC", (r) => r.ttc, "#34d399"]],
         [[T.ttcWarn, `Warnung ${T.ttcWarn} s`]],
-    );
-    panel(
-        c,
-        w + 10,
-        h + 10,
-        w,
-        h,
-        "BTN [–]",
-        0,
-        1.5,
-        0.25,
-        [["BTN", (r) => r.btn, "#f5b942"]],
-        [
-            [T.btnPartial, `Teilbremsung ${T.btnPartial}`],
-            [T.btnFull, `Vollbremsung ${T.btnFull}`],
-            [1, "nicht mehr vermeidbar 1,0"],
-        ],
     );
 }
 
