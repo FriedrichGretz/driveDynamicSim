@@ -55,13 +55,16 @@ const restart = () => {
 
 function build(name: string) {
     p = { ...SC[name] };
-    ui.innerHTML = `<h1>AEB-Lehrsimulation</h1>
+    const open = (document.getElementById("sl") as HTMLDetailsElement | null)?.open;
+    ui.innerHTML = `<div class="bar"><h1>AEB-Lehrsimulation</h1>
   <select id="sc">${Object.keys(SC)
       .map((k) => `<option ${k === name ? "selected" : ""}>${k}</option>`)
       .join("")}</select>
-  <select id="sp">${[0.1, 0.25, 1, 2].map((v) => `<option ${v === speed ? "selected" : ""} value="${v}">${v}×</option>`).join("")}</select><br>
-  <button id="pp">Pause / Weiter</button><button id="rs">Neustart</button>
-  ${SL.map(([k, l, a, b, s]) => `<label>${l}: <b id="v_${k}">${p[k]}</b></label><input type="range" id="r_${k}" min="${a}" max="${b}" step="${s}" value="${p[k]}">`).join("")}`;
+  <select id="sp">${[0.1, 0.25, 1, 2].map((v) => `<option ${v === speed ? "selected" : ""} value="${v}">${v}×</option>`).join("")}</select>
+  <button id="pp">Pause / Weiter</button><button id="rs">Neustart</button></div>
+  <details id="sl"${open ? " open" : ""}><summary>Parameter</summary><div class="sliders">
+  ${SL.map(([k, l, a, b, s]) => `<div><label>${l}: <b id="v_${k}">${p[k]}</b></label><input type="range" id="r_${k}" min="${a}" max="${b}" step="${s}" value="${p[k]}"></div>`).join("")}
+  </div></details>`;
     (document.getElementById("sc") as HTMLSelectElement).onchange = (e) => {
         build((e.target as HTMLSelectElement).value);
         restart();
@@ -163,7 +166,7 @@ function drawScene() {
     g.addColorStop(1, "#2d3b6b");
     c.fillStyle = g;
     c.fillRect(0, 0, W, H);
-    const s = Math.max(4, Math.min(12, (0.5 * W) / (p.gap + L + 5))),
+    const s = Math.max(1, Math.min(12, (0.5 * W) / (p.gap + L + 5))),
         yg = H * 0.8,
         ex = sim.ego.x,
         X = (x: number) => W * 0.4 + (x - ex) * s;
@@ -192,37 +195,23 @@ function drawScene() {
             y - 6,
         );
     }
-    const o = sim.out;
-    rr(c, 14, 12, 190, 34, 10);
-    c.fillStyle = COLS[o.state];
-    c.fill();
-    c.fillStyle = "#0b1020";
-    c.font = "bold 15px system-ui";
-    c.textAlign = "left";
-    c.fillText(NAMES[o.state], 28, 34);
-    c.fillStyle = "#e6e9f2";
-    c.font = "14px ui-monospace,monospace";
-    c.fillText(
-        `TTC ${isFinite(o.ttc) ? o.ttc.toFixed(2) + " s" : "∞"}   t ${sim.t.toFixed(1)} s`,
-        220,
-        34,
-    );
-    c.fillText(
-        isNaN(sim.crash)
-            ? sim.t > 1 && sim.ego.v < 0.1
-                ? "Ego: kein Aufprall"
-                : ""
-            : `Ego: Aufprall mit ${sim.crash.toFixed(1)} km/h`,
-        14,
-        70,
-    );
-    c.fillText(
-        isNaN(sim.ghostCrash)
-            ? ""
-            : `Geist (ohne AEB): Aufprall mit ${sim.ghostCrash.toFixed(1)} km/h`,
-        14,
-        90,
-    );
+}
+
+function drawStatus() {
+    const o = sim.out,
+        $ = (id: string) => document.getElementById(id)!;
+    $("badge").textContent = NAMES[o.state];
+    $("badge").style.background = COLS[o.state];
+    $("metrics").textContent =
+        `TTC ${isFinite(o.ttc) ? o.ttc.toFixed(2) + " s" : "∞"}   t ${sim.t.toFixed(1)} s`;
+    $("crash").textContent = isNaN(sim.crash)
+        ? sim.t > 1 && sim.ego.v < 0.1
+            ? "Ego: kein Aufprall"
+            : ""
+        : `Ego: Aufprall mit ${sim.crash.toFixed(1)} km/h`;
+    $("ghost").textContent = isNaN(sim.ghostCrash)
+        ? ""
+        : `Geist (ohne AEB): Aufprall mit ${sim.ghostCrash.toFixed(1)} km/h`;
 }
 
 type Ser = [string, (r: Rec) => number, string, boolean?];
@@ -242,9 +231,12 @@ function panel(
     c.fillStyle = "#141b2d";
     rr(c, x, y, w, h, 10);
     c.fill();
+    c.font = "12px system-ui";
+    const legW = ser.reduce((a, [nm]) => a + c.measureText(nm).width + 14, 0),
+        wrap = c.measureText(title).width + 24 + legW > w - 24;
     const L0 = x + 46,
         R0 = x + w - 14,
-        T0 = y + 36,
+        T0 = y + (wrap ? 54 : 36),
         B0 = y + h - 24;
     const X = (t: number) => L0 + (t / T_END) * (R0 - L0),
         Y = (v: number) =>
@@ -259,7 +251,7 @@ function panel(
     c.textAlign = "right"; // Legende rechts neben dem Titel
     for (const [nm, , col] of [...ser].reverse()) {
         c.fillStyle = col;
-        c.fillText(nm, lx, y + 20);
+        c.fillText(nm, lx, wrap ? y + 38 : y + 20);
         lx -= c.measureText(nm).width + 14;
     }
     for (let t = 0; t <= T_END; t += 2) {
@@ -319,22 +311,21 @@ function drawPlots() {
         c = fit(cv),
         W = cv.clientWidth,
         H = cv.clientHeight,
-        w = (W - 10) / 2,
-        h = (H - 10) / 2;
+        h = (H - 20) / 3;
     const T = aeb.THRESHOLDS;
-    panel(c, 0, 0, w, h, "Geschwindigkeit [km/h]", 0, 100, 20, [
+    panel(c, 0, 0, W, h, "Beschleunigung [m/s²]", -12, 4, 4, [
+        ["Fahrerwunsch", (r) => r.aD, "#8892b0", true],
+        ["AEB-Ergebnis (Ego)", (r) => r.aC, "#ff4d5e"],
+    ]);
+    panel(c, 0, h + 10, W, h, "Geschwindigkeit [km/h]", 0, 100, 20, [
         ["Ego", (r) => r.ve, "#3b82f6"],
         ["Ziel", (r) => r.vt, "#ff9f43"],
         ["Geist (ohne AEB)", (r) => r.vg, "#9db4ff", true],
     ]);
-    panel(c, w + 10, 0, w, h, "Beschleunigung [m/s²]", -12, 4, 4, [
-        ["Fahrerwunsch", (r) => r.aD, "#8892b0", true],
-        ["AEB-Ergebnis (Ego)", (r) => r.aC, "#ff4d5e"],
-    ]);
     panel(
         c,
         0,
-        h + 10,
+        2 * (h + 10),
         W,
         h,
         "TTC [s]",
@@ -357,6 +348,7 @@ function frame(ts: number) {
             acc -= DT;
         }
     }
+    drawStatus();
     drawScene();
     drawPlots();
     requestAnimationFrame(frame);

@@ -2,6 +2,7 @@
 <html lang="de">
     <head>
         <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>AEB-Lehrsimulation</title>
         <style>
             :root {
@@ -14,11 +15,8 @@
                 font:
                     14px system-ui,
                     sans-serif;
-                display: flex;
-                height: 100vh;
             }
             main {
-                flex: 1;
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
@@ -28,28 +26,41 @@
             canvas {
                 border-radius: 12px;
                 display: block;
+                width: 100%;
             }
             #scene {
-                width: 100%;
-                height: 300px;
-                flex: none;
-            }
-            #plotwrap {
-                flex: 1;
-                min-height: 300px;
-                position: relative;
+                height: 240px;
             }
             #plots {
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
+                height: 590px; /* 3 Diagramme à 190 px + 2 Abstände */
             }
-            aside {
-                width: 270px;
-                padding: 14px;
+            #ui {
                 background: #10172b;
-                overflow: auto;
+                border-radius: 12px;
+                padding: 10px 14px;
+            }
+            .bar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 4px;
+            }
+            .bar h1 {
+                font-size: 16px;
+                margin: 0 12px 0 0;
+            }
+            details {
+                margin-top: 8px;
+            }
+            summary {
+                cursor: pointer;
+                color: #9aa4c2;
+                user-select: none;
+            }
+            .sliders {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 0 16px;
             }
             label {
                 display: block;
@@ -70,18 +81,49 @@
                 margin: 2px;
                 cursor: pointer;
             }
-            h1 {
-                font-size: 16px;
-                margin: 0 0 8px;
+            #status {
+                background: #10172b;
+                border-radius: 12px;
+                padding: 10px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                font: 14px ui-monospace, monospace;
+            }
+            #status .row {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px 16px;
+            }
+            #badge {
+                padding: 6px 14px;
+                border-radius: 10px;
+                font: bold 15px system-ui, sans-serif;
+                color: #0b1020;
+            }
+            #metrics {
+                white-space: pre;
+            }
+            #crash,
+            #ghost {
+                min-height: 1.3em;
             }
         </style>
     </head>
     <body>
         <main>
+            <div id="ui"></div>
+            <div id="status">
+                <div class="row">
+                    <span id="badge"></span><span id="metrics"></span>
+                </div>
+                <div id="crash"></div>
+                <div id="ghost"></div>
+            </div>
             <canvas id="scene"></canvas>
-            <div id="plotwrap"><canvas id="plots"></canvas></div>
+            <canvas id="plots"></canvas>
         </main>
-        <aside id="ui"></aside>
         <script type="module" src="/src/main.ts"></script>
     </body>
 </html>
