@@ -167,6 +167,10 @@ function drawScene() {
         yg = H - 42, // Fahrzeuge oben, Abstandsbalken darunter
         ex = sim.ego.x,
         X = (x: number) => W * 0.4 + (x - ex) * s;
+    c.fillStyle = "#c9cde0";
+    const per = 9 * s;
+    for (let i = -1; i < W / per + 2; i++)
+        c.fillRect(i * per - ((ex * s) % per), yg + 8, 3 * s, 3);
     car(c, X(sim.ghost.x), yg, s, "#9db4ff", 0.35, false, true);
     car(c, X(sim.tgt.x), yg, s, "#ff9f43", 1, sim.tgt.a < -0.5);
     car(c, X(sim.ego.x), yg, s, "#3b82f6", 1, sim.ego.a < -0.5);
