@@ -55,7 +55,7 @@ export function decideNextState(
 // Aus Stufe und Fahrerwunsch entsteht der Sollwert für die Bremsenregelung.
 export function arbitrate(
     aDriver: number,
-    state: number,
+    state: AebState,
     aMax: number,
 ): number {
     let aAeb = aDriver;

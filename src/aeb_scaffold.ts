@@ -29,7 +29,8 @@ export const initState = (): AebState => AebState.NoDanger;
 // --- 1. Metriken -------------------------------------------------
 
 // --- 2. Triggerlogik ---------------------------------------------
-export const THRESHOLDS = { ttcWarn: 2.5 }; // werden auch in den Plots angezeigt
+export const THRESHOLDS = { ttcWarn: 2.3, ttcFull: 1.5 }; // werden auch in den Plots angezeigt
+
 
 // --- 3. Arbitrierung ---------------------------------------------
 // Aus Stufe und Fahrerwunsch entsteht der Sollwert für die Bremsenregelung.
