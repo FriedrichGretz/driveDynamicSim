@@ -249,7 +249,7 @@ function panel(
         c.fillText(nm, lx, wrap ? y + 38 : y + 20);
         lx -= c.measureText(nm).width + 14;
     }
-    for (let t = 0; t <= T_END; t += 2) {
+    for (let t = 0; t <= T_END; t += w < 300 ? 4 : 2) {
         // x-Achse: Zeit
         c.strokeStyle = "#222c49";
         c.beginPath();
@@ -306,21 +306,13 @@ function drawPlots() {
         c = fit(cv),
         W = cv.clientWidth,
         H = cv.clientHeight,
-        h = (H - 20) / 3;
+        w = (W - 10) / 2,
+        h = (H - 10) / 2;
     const T = aeb.THRESHOLDS;
-    panel(c, 0, 0, W, h, "Beschleunigung [m/s²]", -12, 4, 4, [
-        ["Fahrerwunsch", (r) => r.aD, "#8892b0", true],
-        ["AEB-Ergebnis (Ego)", (r) => r.aC, "#ff4d5e"],
-    ]);
-    panel(c, 0, h + 10, W, h, "Geschwindigkeit [km/h]", 0, 100, 20, [
-        ["Ego", (r) => r.ve, "#3b82f6"],
-        ["Ziel", (r) => r.vt, "#ff9f43"],
-        ["Geist (ohne AEB)", (r) => r.vg, "#9db4ff", true],
-    ]);
     panel(
         c,
         0,
-        2 * (h + 10),
+        0,
         W,
         h,
         "TTC [s]",
@@ -330,6 +322,15 @@ function drawPlots() {
         [["TTC", (r) => r.ttc, "#34d399"]],
         [[T.ttcWarn, `Warnung ${T.ttcWarn} s`]],
     );
+    panel(c, 0, h + 10, w, h, "Beschleunigung [m/s²]", -12, 4, 4, [
+        ["Fahrerwunsch", (r) => r.aD, "#8892b0", true],
+        ["AEB-Ergebnis (Ego)", (r) => r.aC, "#ff4d5e"],
+    ]);
+    panel(c, w + 10, h + 10, w, h, "Geschwindigkeit [km/h]", 0, 100, 20, [
+        ["Ego", (r) => r.ve, "#3b82f6"],
+        ["Ziel", (r) => r.vt, "#ff9f43"],
+        ["Geist (ohne AEB)", (r) => r.vg, "#9db4ff", true],
+    ]);
 }
 
 function frame(ts: number) {
